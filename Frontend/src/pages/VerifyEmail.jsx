@@ -1,14 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { setSignupData } from "../slices/authSlice";
+import { resendOtp } from "../services/operations/authAPI";
 import { toast } from "react-hot-toast";
 
 export default function VerifyEmail() {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [countdown, setCountdown] = useState(0);
+  const [isResendDisabled, setIsResendDisabled] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { signupData, loading } = useSelector((state) => state.auth);
+
+  // Countdown timer effect
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    } else if (countdown === 0 && isResendDisabled) {
+      setIsResendDisabled(false);
+    }
+  }, [countdown, isResendDisabled]);
 
   const handleChange = (element, index) => {
     if (isNaN(element.value)) return;
@@ -55,6 +68,18 @@ export default function VerifyEmail() {
     navigate("/domain-selection");
   };
 
+  const handleResendOtp = () => {
+    if (!signupData?.email) {
+      toast.error("Email not found");
+      return;
+    }
+
+    setIsResendDisabled(true);
+    setCountdown(30);
+
+    dispatch(resendOtp(signupData.email));
+  };
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-black text-white">
       {/* 🔳 TILE GRID BACKGROUND (Matching Register) */}
@@ -92,10 +117,11 @@ export default function VerifyEmail() {
             </div>
           </div>
 
+          {/* Heading and Description */}
           <h1 className="text-3xl font-bold text-white mb-2">
             Verify Email
           </h1>
-          <p className="text-gray-400 mb-6">
+          <p className="text-gray-400 mb-8">
             Enter the 6-digit code sent to
             <br />
             <span className="font-semibold text-emerald-400">
@@ -118,6 +144,18 @@ export default function VerifyEmail() {
             ))}
           </div>
 
+          {/* Resend OTP Button */}
+          <div className="text-center mb-6">
+            <button
+              onClick={handleResendOtp}
+              disabled={isResendDisabled}
+              className="text-sm font-semibold text-emerald-500 hover:text-emerald-400 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
+            >
+              {isResendDisabled ? `Resend OTP in ${countdown}s` : "Didn't receive OTP? Resend"}
+            </button>
+          </div>
+
+          {/* Verify Button */}
           <button
             onClick={handleVerify}
             disabled={loading || otp.join('').length !== 6}
@@ -129,6 +167,7 @@ export default function VerifyEmail() {
             <span className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-emerald-600 opacity-0 hover:opacity-100 transition-opacity" />
           </button>
 
+          {/* Back to Registration */}
           <button
             onClick={() => navigate('/register')}
             className="w-full text-gray-400 font-medium hover:text-emerald-400 transition-colors flex items-center justify-center gap-2"
